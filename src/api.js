@@ -1,13 +1,18 @@
+//0. register in the service https://min-api.cryptocompare.com/ and get your API KEY
+
 const API_KEY = "380ec498044c900f249ad39326e8320a2cb4ee09b94afe4dff6911e37ef56bfc";
 
 const tickersHandlers = new Map(); // {}
+//1. socket link
 const socket = new WebSocket(
     `wss://streamer.cryptocompare.com/v2?api_key=${API_KEY}`
 );
 
 const AGGREGATE_INDEX = "5";
 
+// 5. when WS opened -> subscribe on channel (we're listening messages)
 socket.addEventListener("message", e => {
+
     const { TYPE: type, FROMSYMBOL: currency, PRICE: newPrice } = JSON.parse(
         e.data
     );
@@ -16,17 +21,21 @@ socket.addEventListener("message", e => {
     }
 
     const handlers = tickersHandlers.get(currency) ?? [];
+    // We can see
+    console.log(currency, newPrice);
     handlers.forEach(fn => fn(newPrice));
 });
 
 function sendToWebSocket(message) {
     const stringifiedMessage = JSON.stringify(message);
 
+    // 3. if WS open then we just send prepared message
     if (socket.readyState === WebSocket.OPEN) {
         socket.send(stringifiedMessage);
         return;
     }
 
+    // 4. when WS will be first open
     socket.addEventListener(
         "open",
         () => {
@@ -36,6 +45,8 @@ function sendToWebSocket(message) {
     );
 }
 
+// 2. pass string with action for WS.
+// String specified for current API https://min-api.cryptocompare.com/documentation/websockets
 function subscribeToTickerOnWs(ticker) {
     sendToWebSocket({
         action: "SubAdd",
