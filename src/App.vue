@@ -108,7 +108,7 @@
         <h3 class="text-lg leading-6 font-medium text-gray-900 my-8">
           {{ selectedTicker.name }} - USD
         </h3>
-        <div class="flex items-end border-gray-600 border-b border-l h-64">
+        <div class="flex items-end border-gray-600 border-b border-l h-64" ref="graph">
           <div
             v-for="(bar, idx) in normalizedGraph"
             :key="idx"
@@ -150,14 +150,14 @@
 
 <script>
 //TODO: [x] 6. In state includes DEPENDED DATA | critical: 5+
-//TODO: [ ] 2. After deleting ticker from list - suscription on this ticker is still exist | critical: 5
-//TODO: [ ] 4. Hard connectedness with logic and data which influence on view | critical: 5
-//TODO: [ ] 5. Error handling of the API | critical: 5
-//TODO: [ ] 3. Count of requests | critical : 4
+//TODO: [x] 2. After deleting ticker from list - suscription on this ticker is still exist | critical: 5
+//TODO: [x] 4. Hard connectedness with logic and data which influence on view | critical: 5
+//TODO: [H] 5. Error handling of the API | critical: 5
+//TODO: [x] 3. Count of requests | critical : 4
 //TODO: [x] 8. After deleting ticker LS is not updates | critical: 4
 //TODO: [x] 1. The same code in watch | critical: 3
 //TODO: [ ] 9. Local storage and private tabs (LS not available) | critical: 3
-//TODO: [ ] 7. Ugly graphic when too many prices  | critical: 2
+//TODO: [X] 7. Ugly graphic when too many prices  | critical: 2
 //TODO: [ ] 10. Magic things (URL, 5000ms pending, local storage key, count on the page, naming methods and variables ) : critical 1
 
 // At the same time:
@@ -175,6 +175,7 @@ export default {
       tickers: [],
       selectedTicker: null,
       graph: [],
+      maxGraphElements: 1,
       page: 1,
       filter: "",
     };
@@ -216,6 +217,14 @@ export default {
     }
     setInterval(this.updateTickers, 5000);
 
+  },
+
+  mounted() {
+    window.addEventListener("resize", this.calculateMaxGraphElements)
+  },
+
+  beforeUnmount() {
+    window.removeEventListener("resize", this.calculateMaxGraphElements)
   },
 
   computed: {
@@ -262,8 +271,23 @@ export default {
   },
 
   methods: {
+    calculateMaxGraphElements(){
+      if(!this.$refs.graph) return;
+      this.maxGraphElements = this.$refs.graph.clientWidth / 38;
+    },
     updateTicker(tickerName, price){
-      this.tickers.filter(t => t.name === tickerName).forEach(t => {t.price = price})
+      this.tickers
+          .filter(t => t.name === tickerName)
+          .forEach(t => {
+            if(t === this.selectedTicker){
+              this.graph.push(price);
+              // TODO: refactor to slice()
+              while (this.graph.length > this.maxGraphElements){
+                this.graph.shift()
+              }
+            }
+            t.price = price
+          })
     },
 
     formatPrice(price){
@@ -306,6 +330,9 @@ export default {
 
     select(ticker) {
       this.selectedTicker = ticker;
+      this.$nextTick(()=> {
+        this.calculateMaxGraphElements();
+      })
     },
 
     handleDelete(tickerToRemove) {
@@ -321,6 +348,8 @@ export default {
   watch: {
     selectedTicker(){
       this.graph = [];
+      //
+      this.$nextTick().then(this.calculateMaxGraphElements);
     },
 
     tickers(newValue, oldValue){
